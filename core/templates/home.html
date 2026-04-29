@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Django SAML POC</title>
+</head>
+<body>
+    {% if user.is_authenticated %}
+        <h1>Hello, {{ user.username }}! ✅ Authenticated via SAML SSO</h1>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit">Logout</button>
+        </form>
+    {% else %}
+        <h1>Welcome, Guest!</h1>
+        <a href="{% url 'saml2_login' %}">Login with SSO</a>
+    {% endif %}
+</body>
+</html>
