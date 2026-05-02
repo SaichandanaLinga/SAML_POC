@@ -1,0 +1,66 @@
+<!-- core/templates/login.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login — Choose your SSO</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h2 { color: #333; }
+        .btn {
+            display: block;
+            padding: 12px 20px;
+            margin: 10px 0;
+            text-decoration: none;
+            border-radius: 6px;
+            text-align: center;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .saml       { background: #4285f4; }
+        .google_oauth { background: #34a853; }
+        .azure_oauth  { background: #00a1f1; }
+        .oidc       { background: #ff6d00; }
+        .error      { color: red; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h2>🔐 Login with your Company SSO</h2>
+
+    {% if error %}
+        <p class="error">
+            {% if error == 'invalid_idp' %}
+                Invalid SSO configuration. Please contact your admin.
+            {% elif error == 'missing_metadata' %}
+                SAML metadata not configured. Please contact your admin.
+            {% else %}
+                Something went wrong. Please try again.
+            {% endif %}
+        </p>
+    {% endif %}
+
+    {% for idp in idps %}
+        <a class="btn {{ idp.protocol }}"
+           href="{% url 'sso_login' idp.slug %}">
+
+            {% if idp.protocol == 'saml' %}
+                🔒 {{ idp.client_name }} — SAML SSO
+            {% elif idp.protocol == 'google_oauth' %}
+                🟢 {{ idp.client_name }} — Google OAuth
+            {% elif idp.protocol == 'azure_oauth' %}
+                🔷 {{ idp.client_name }} — Microsoft OAuth
+            {% elif idp.protocol == 'oidc' %}
+                🟠 {{ idp.client_name }} — Custom SSO
+            {% endif %}
+
+        </a>
+    {% empty %}
+        <p>No SSO providers configured yet. Please contact your admin.</p>
+    {% endfor %}
+</body>
+</html>
