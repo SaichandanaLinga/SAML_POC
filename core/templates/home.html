@@ -1,18 +1,32 @@
+<!-- core/templates/home.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Django SAML POC</title>
+    <title>Django Multi-Tenant SSO POC</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; }
+        .btn { padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .logout { background: #e53935; color: white; border: none; font-size: 15px; }
+    </style>
 </head>
 <body>
     {% if user.is_authenticated %}
-        <h1>Hello, {{ user.username }}! ✅ Authenticated via SAML SSO</h1>
+        <h1>Hello, {{ user.username }}! ✅</h1>
+
+        {% if request.session.current_idp_name %}
+            <p>Logged in via: <strong>{{ request.session.current_idp_name }}</strong></p>
+        {% endif %}
+
+        <p>Email: {{ user.email }}</p>
+
         <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button type="submit">Logout</button>
+            <button class="btn logout" type="submit">Logout</button>
         </form>
     {% else %}
-        <h1>Welcome, Guest!</h1>
-        <a href="{% url 'saml2_login' %}">Login with SSO</a>
+        <h1>Welcome to Django SSO POC</h1>
+        <p>Please login with your company SSO account.</p>
+        <a href="{% url 'login' %}">🔐 Login with SSO</a>
     {% endif %}
 </body>
 </html>
