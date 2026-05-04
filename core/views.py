@@ -65,10 +65,12 @@ def sso_login(request, slug):
 
     # ── Google OAuth Protocol ──────────────────────────────
     elif idp.protocol == 'google_oauth':
-        # Load this client's OAuth credentials into settings at runtime
-        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = idp.oauth_client_id
-        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = idp.oauth_client_secret
-
+        # Store credentials in session — safe for concurrent multi-client use.
+        # SessionAwareGoogleOAuth2 backend reads from here instead of global settings.
+        request.session['google_client_id'] = idp.oauth_client_id
+        request.session['google_client_secret'] = idp.oauth_client_secret
+        # Store allowed domain so backend enforces it via Google's 'hd' param
+        request.session['oauth_allowed_domain'] = idp.oauth_allowed_domain
         request.session['current_idp_slug'] = slug
         request.session['current_idp_name'] = idp.client_name
 
@@ -76,10 +78,13 @@ def sso_login(request, slug):
 
     # ── Azure AD OAuth Protocol ────────────────────────────
     elif idp.protocol == 'azure_oauth':
-        # Load this client's Azure credentials into settings at runtime
-        settings.SOCIAL_AUTH_AZUREAD_OAUTH2_KEY = idp.oauth_client_id
-        settings.SOCIAL_AUTH_AZUREAD_OAUTH2_SECRET = idp.oauth_client_secret
-
+        # Store credentials in session — safe for concurrent multi-client use.
+        # SessionAwareAzureADOAuth2 backend reads from here instead of global settings.
+        request.session['azure_client_id'] = idp.oauth_client_id
+        request.session['azure_client_secret'] = idp.oauth_client_secret
+        # Store tenant ID/domain so backend locks the OAuth flow to that tenant
+        request.session['azure_tenant_id'] = idp.oauth_allowed_domain
+        request.session['oauth_allowed_domain'] = idp.oauth_allowed_domain
         request.session['current_idp_slug'] = slug
         request.session['current_idp_name'] = idp.client_name
 
@@ -117,6 +122,32 @@ class DebugACSView(AssertionConsumerServiceView):
         print("NAME ID:", name_id.text if name_id else "NONE")
         print("AVA (attributes):", session_info.get('ava'))
         print("=" * 60)
+
+        # ── SAML Domain Restriction ────────────────────────────
+        slug = request.session.get('current_idp_slug')
+        if slug:
+            try:
+                idp = IdentityProvider.objects.get(slug=slug, is_active=True)
+                allowed_domain = (idp.oauth_allowed_domain or '').lstrip('@').lower()
+                if allowed_domain:
+                    ava = session_info.get('ava', {})
+                    # Try common SAML email attribute keys (Google Workspace + Azure AD)
+                    email = (
+                        (ava.get('email') or [''])[0] or
+                        (ava.get('http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress') or [''])[0] or
+                        ''
+                    )
+                    # Fall back to NameID if no email attribute
+                    if not email and name_id and name_id.text:
+                        email = name_id.text
+
+                    if not email.lower().endswith(f'@{allowed_domain}'):
+                        from django.core.exceptions import PermissionDenied
+                        raise PermissionDenied(
+                            f"Login denied: only @{allowed_domain} accounts are allowed."
+                        )
+            except IdentityProvider.DoesNotExist:
+                pass
 
         return super().authenticate_user(
             request, session_info, attribute_mapping,

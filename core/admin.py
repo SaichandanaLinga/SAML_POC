@@ -16,14 +16,24 @@ class IdentityProviderAdmin(admin.ModelAdmin):
         ('Client Info', {
             'fields': ('client_name', 'slug', 'protocol', 'is_active')
         }),
+        ('Access Control', {
+            'fields': ('oauth_allowed_domain',),
+            'description': (
+                'Restrict logins to a specific domain. Applies to ALL protocols. '
+                'SAML: email domain, e.g. acme.com. '
+                'Google OAuth: Google Workspace domain, e.g. acme.com. '
+                'Azure OAuth: Tenant ID (UUID) from Azure Portal. '
+                'Leave blank to allow any account.'
+            ),
+        }),
         ('SAML Configuration', {
             'fields': ('saml_metadata_file',),
-            'description': 'Fill this section if protocol is SAML 2.0',
+            'description': 'Fill this section if protocol is SAML 2.0.',
             'classes': ('collapse',),
         }),
         ('OAuth Configuration (Google / Azure)', {
             'fields': ('oauth_client_id', 'oauth_client_secret'),
-            'description': 'Fill this section if protocol is Google OAuth or Azure OAuth',
+            'description': 'Fill this section if protocol is Google OAuth or Azure OAuth.',
             'classes': ('collapse',),
         }),
         ('Custom OIDC Configuration', {

@@ -43,8 +43,8 @@ MIDDLEWARE = [
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",            # Django admin login
     "djangosaml2.backends.Saml2Backend",                    # SAML (any IdP)
-    "social_core.backends.google.GoogleOAuth2",             # Google OAuth
-    "social_core.backends.azuread.AzureADOAuth2",           # Microsoft OAuth
+    "core.backends.SessionAwareGoogleOAuth2",               # Google OAuth  (reads creds from session)
+    "core.backends.SessionAwareAzureADOAuth2",              # Microsoft OAuth (reads creds from session)
     "mozilla_django_oidc.auth.OIDCAuthenticationBackend",   # Custom OIDC
 ]
 
@@ -86,9 +86,27 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = os.getenv(
     'SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI'
 )
 
+# Allow a social account already in the DB to log back in instead of raising
+# AuthAlreadyAssociated when the same account is used across sessions.
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',       # finds existing association
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',    # links account to user
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+)
+
 # ── Azure AD OAuth Settings ────────────────────────────────
-SOCIAL_AUTH_AZUREAD_OAUTH2_KEY = ''          # Fill when client provides
-SOCIAL_AUTH_AZUREAD_OAUTH2_SECRET = ''       # Fill when client provides
+# No static KEY/SECRET here — credentials are stored per-request in the session
+# by sso_login() and read by SessionAwareAzureADOAuth2 backend in core/backends.py
+SOCIAL_AUTH_AZUREAD_OAUTH2_KEY = ''
+SOCIAL_AUTH_AZUREAD_OAUTH2_SECRET = ''
+# Force the correct public-facing callback URL (needed when running behind ngrok/reverse proxy)
+SOCIAL_AUTH_AZUREAD_OAUTH2_CALLBACK_URL = 'https://sneezing-overhung-overlaid.ngrok-free.dev/social-auth/complete/azuread-oauth2/'
 
 # ── Custom OIDC Settings ───────────────────────────────────
 OIDC_RP_CLIENT_ID = ''                       # Fill when client provides
@@ -103,6 +121,11 @@ OIDC_OP_JWKS_ENDPOINT = ''
 CSRF_TRUSTED_ORIGINS = [
     'https://sneezing-overhung-overlaid.ngrok-free.dev',
 ]
+
+# Trust the ngrok reverse proxy so request.build_absolute_uri() returns
+# the correct public URL instead of 127.0.0.1
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ROOT_URLCONF = "saml_poc.urls"
 

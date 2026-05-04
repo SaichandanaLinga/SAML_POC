@@ -39,6 +39,17 @@ class IdentityProvider(models.Model):
         blank=True,
         help_text="Client Secret from Google Cloud Console or Azure Portal"
     )
+    oauth_allowed_domain = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text=(
+            "Restrict logins to this domain. "
+            "SAML: email domain, e.g. acme.com. "
+            "Google OAuth: Google Workspace domain, e.g. acme.com. "
+            "Azure OAuth: Tenant ID (UUID) from Azure Portal. "
+            "Leave blank to allow any account (not recommended for production)."
+        )
+    )
 
     # ── Custom OIDC Fields ───────────────────────────────────
     oidc_authorization_endpoint = models.URLField(
